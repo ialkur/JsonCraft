@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JsonCraft</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f3; color: #1a1a18; font-size: 14px; min-height: 100vh; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+.header { padding: 14px 16px; background: #fff; border-bottom: 1px solid #e0ddd6; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 15px; font-weight: 600; }
+.app { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; min-height: calc(100vh - 53px); }
+.panel { background: #fff; border: 1px solid #e0ddd6; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.panel-header { padding: 12px 16px; border-bottom: 1px solid #e0ddd6; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.panel-title { font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.06em; text-transform: uppercase; }
+.panel-body { padding: 16px; flex: 1; overflow-y: auto; }
+
+/* Import */
+.import-box { background: #f9f8f6; border: 1px dashed #ccc; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+.import-box-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.import-box-title { font-size: 12px; font-weight: 600; color: #555; }
+.import-toggle { font-size: 11px; color: #999; }
+.import-textarea { width: 100%; height: 100px; border: 1px solid #ddd; border-radius: 6px; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px; resize: vertical; background: #fff; color: #1a1a18; outline: none; transition: border-color 0.15s; margin-top: 10px; }
+.import-textarea:focus { border-color: #888; }
+.import-textarea.error { border-color: #c33; background: #fff8f8; }
+.import-textarea.success { border-color: #3a7d44; background: #f8fff9; }
+.import-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.import-error { font-size: 11px; color: #c33; flex: 1; }
+.import-success { font-size: 11px; color: #3a7d44; flex: 1; }
+
+.template-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.muted { font-size: 12px; color: #999; }
+.chip { font-size: 12px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 999px; cursor: pointer; background: transparent; color: #555; transition: all 0.12s; font-family: inherit; }
+.chip:hover { background: #f5f5f3; color: #111; border-color: #aaa; }
+.btn { border: 1px solid #d0cec8; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; background: transparent; color: #1a1a18; transition: background 0.12s; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+.btn:hover { background: #f5f5f3; }
+.btn.small { font-size: 12px; padding: 4px 10px; }
+.btn.primary { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+.btn.primary:hover { background: #333; }
+
+/* Alan satırı */
+.field-wrap { position: relative; margin-bottom: 2px; }
+.field-row { display: flex; gap: 6px; align-items: center; }
+.field-row input, .field-row select { flex: 1; border: 1px solid #ddd; border-radius: 7px; padding: 6px 9px; font-size: 13px; color: #1a1a18; background: #fafaf8; font-family: inherit; outline: none; min-width: 0; }
+.field-row input:focus, .field-row select:focus { border-color: #888; }
+.field-row select { cursor: pointer; max-width: 110px; flex-shrink: 0; }
+
+/* Açıklama */
+.btn-desc {
+  border: none; width: 26px; height: 26px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; cursor: pointer; background: transparent;
+  flex-shrink: 0; font-size: 14px; line-height: 1; font-family: inherit;
+  color: #bbb; transition: color 0.12s, background 0.12s;
+  position: relative;
+}
+.btn-desc:hover { background: #f0f6ff; color: #3a6bc7; }
+.btn-desc.has-desc { color: #3a6bc7; }
+.btn-desc.has-desc::after {
+  content: ''; position: absolute; top: 4px; right: 4px;
+  width: 5px; height: 5px; border-radius: 50%; background: #3a6bc7;
+}
+.desc-row { margin-top: 4px; margin-left: 4px; display: flex; align-items: flex-start; gap: 6px; }
+.desc-row textarea {
+  flex: 1; border: 1px solid #c8d8f0; border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; font-family: inherit;
+  color: #1a1a18; background: #f0f6ff; outline: none;
+  resize: none; line-height: 1.5; min-height: 34px;
+  transition: border-color 0.15s; overflow: hidden;
+}
+.desc-row textarea:focus { border-color: #3a6bc7; }
+.desc-row textarea::placeholder { color: #aac; }
+.desc-label { font-size: 11px; color: #3a6bc7; white-space: nowrap; padding-top: 6px; }
+
+/* JSON output: açıklama yorum olarak göster */
+.jcomment { color: #888; font-style: italic; }
+
+/* Araya ekleme çizgisi */
+.insert-line { display: flex; align-items: center; gap: 6px; height: 20px; margin: 1px 0; opacity: 0; transition: opacity 0.15s; }
+.insert-line:hover { opacity: 1 !important; }
+.field-wrap:hover + .insert-line { opacity: 1; }
+.insert-line-bar { flex: 1; height: 1px; background: #3a7d44; }
+.insert-btn { font-size: 11px; padding: 1px 8px; border: 1px solid #3a7d44; border-radius: 999px; background: #fff; color: #3a7d44; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.12s; }
+.insert-btn:hover { background: #f0fff3; }
+
+.btn-del { border: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #aaa; cursor: pointer; background: transparent; flex-shrink: 0; font-size: 18px; line-height: 1; font-family: inherit; }
+.btn-del:hover { background: #fee; color: #c33; }
+.nested-panel { background: #fafaf8; border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px; margin-top: 6px; margin-bottom: 4px; }
+.nested-label { font-size: 11px; color: #888; margin-bottom: 6px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+
+.json-output { background: #fafaf8; border-radius: 8px; padding: 14px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.75; white-space: pre-wrap; word-break: break-all; min-height: 300px; border: 1px solid #e0ddd6; color: #1a1a18; }
+.jk { color: #185FA5; } .js { color: #3B6D11; } .jn { color: #BA7517; } .jb { color: #993556; } .jx { color: #999; }
+.root-bar { display:flex; gap:8px; margin-bottom:12px; align-items:center; }
+
+/* Açıklama göster/gizle toggle */
+.show-desc-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.toggle-switch { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 999px; cursor: pointer; transition: background 0.2s; }
+.toggle-slider::before { content: ''; position: absolute; width: 12px; height: 12px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+.toggle-switch input:checked + .toggle-slider { background: #3a6bc7; }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
+
+.key-warning {
+  font-size: 11px; color: #9a6000; background: #fffbea;
+  border: 1px solid #f0d070; border-radius: 5px;
+  padding: 3px 8px; margin-top: 3px; line-height: 1.5;
+}
+.key-warning b { color: #3a7d44; }
+.field-row input.warn { border-color: #f0c030; background: #fffdf0; }
+@media (max-width: 640px) { .app { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="header"><h1>🛠 JsonCraft</h1></div>
+<div class="app">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Alanlar</span>
+      <button class="btn small" onclick="clearAll()">🗑 Temizle</button>
+    </div>
+    <div class="panel-body">
+      <!-- Import -->
+      <div class="import-box">
+        <div class="import-box-header" onclick="toggleImport()">
+          <span class="import-box-title">📥 JSON İçe Aktar</span>
+          <span class="import-toggle" id="import-toggle">▼ göster</span>
+        </div>
+        <div id="import-body" style="display:none">
+          <textarea class="import-textarea" id="import-textarea" placeholder="Buraya JSON yapıştırın..."></textarea>
+          <div class="import-actions">
+            <button class="btn primary small" onclick="importJSON()">✓ Yükle</button>
+            <button class="btn small" onclick="clearImport()">Temizle</button>
+            <span id="import-msg"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="template-bar">
+        <span class="muted">Şablon:</span>
+        <button class="chip" onclick="loadTemplate('siparis')">📦 Sipariş</button>
+        <button class="chip" onclick="loadTemplate('kullanici')">👤 Kullanıcı</button>
+        <button class="chip" onclick="loadTemplate('urun')">🛍️ Ürün</button>
+      </div>
+      <div class="root-bar">
+        <span class="muted">Kök yapı:</span>
+        <button class="btn small" id="btn-obj" onclick="setRootType('object')">{ } Nesne</button>
+        <button class="btn small" id="btn-arr" onclick="setRootType('array')">[ ] Dizi</button>
+      </div>
+
+      <!-- Açıklama göster/gizle -->
+      <div class="show-desc-bar">
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-desc" checked onchange="toggleDescVisibility()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="muted">Açıklamaları göster</span>
+      </div>
+
+      <div id="fields-container"></div>
+      <div style="margin-top:8px">
+        <button class="btn" onclick="addFieldAtEnd(null)">+ Alan ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">JSON Çıktısı</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#888;cursor:pointer">
+          <input type="checkbox" id="toggle-comments" onchange="renderJSON()"> Yorumlar
+        </label>
+        <button class="btn small" id="copy-btn" onclick="copyJSON()">📋 Kopyala</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="json-output" id="json-output"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let rootType = 'object';
+let fields = [];
+let nextId = 1;
+let showDescriptions = true;
+
+function toggleDescVisibility() {
+  showDescriptions = document.getElementById('toggle-desc').checked;
+  document.querySelectorAll('.desc-row').forEach(el => {
+    el.style.display = showDescriptions ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.btn-desc').forEach(el => {
+    el.style.display = showDescriptions ? '' : 'none';
+  });
+}
+
+// ── Import ──
+let importOpen = false;
+function toggleImport() {
+  importOpen = !importOpen;
+  document.getElementById('import-body').style.display = importOpen ? 'block' : 'none';
+  document.getElementById('import-toggle').textContent = importOpen ? '▲ gizle' : '▼ göster';
+}
+function clearImport() {
+  const ta = document.getElementById('import-textarea');
+  ta.value = ''; ta.className = 'import-textarea';
+  document.getElementById('import-msg').textContent = '';
+}
+function importJSON() {
+  const ta = document.getElementById('import-textarea');
+  const raw = ta.value.trim();
+  if (!raw) { showImportMsg('error', 'Lütfen JSON girin.'); return; }
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) {
+    ta.className = 'import-textarea error';
+    showImportMsg('error', 'Geçersiz JSON: ' + e.message); return;
+  }
+  ta.className = 'import-textarea success';
+  fields = []; nextId = 1;
+  if (Array.isArray(parsed)) { setRootTypeSilent('array'); parsed.forEach(item => buildField(item, null)); }
+  else if (typeof parsed === 'object' && parsed !== null) { setRootTypeSilent('object'); Object.entries(parsed).forEach(([k,v]) => buildField(v, null, k)); }
+  else { setRootTypeSilent('object'); buildField(parsed, null, 'deger'); }
+  renderFields(); renderJSON();
+  showImportMsg('success', 'JSON başarıyla yüklendi ✓');
+  setTimeout(() => { importOpen = false; document.getElementById('import-body').style.display = 'none'; document.getElementById('import-toggle').textContent = '▼ göster'; }, 1200);
+}
+function showImportMsg(type, text) {
+  const msg = document.getElementById('import-msg');
+  msg.textContent = text;
+  msg.className = type === 'error' ? 'import-error' : 'import-success';
+}
+function buildField(value, parentId, key) {
+  const id = nextId++;
+  const type = detectType(value);
+  const field = { id, parentId, key: key || '', type, value: '', desc: '', children: [] };
+  if (type === 'string') field.value = value;
+  else if (type === 'number') field.value = String(value);
+  else if (type === 'boolean') field.value = String(value);
+  fields.push(field);
+  if (parentId !== null) { const p = fields.find(f => f.id === parentId); if (p) p.children.push(id); }
+  if (type === 'object' && value !== null) Object.entries(value).forEach(([k,v]) => buildField(v, id, k));
+  else if (type === 'array') value.forEach(item => buildField(item, id, ''));
+  return id;
+}
+function detectType(val) {
+  if (val === null) return 'null';
+  if (Array.isArray(val)) return 'array';
+  if (typeof val === 'object') return 'object';
+  if (typeof val === 'boolean') return 'boolean';
+  if (typeof val === 'number') return 'number';
+  return 'string';
+}
+
+// ── Alan işlemleri ──
+function onKeyChange(id, val) {
+  const f = fields.find(x => x.id === id);
+  if (!f) return;
+  f.key = val;
+  f.keyWarning = val ? validateKey(val) : null;
+  const wrap = document.querySelector('.field-wrap[data-field-id="' + id + '"]');
+  if (wrap) updateKeyWarningEl(wrap, f.keyWarning);
+  renderJSON();
+}
+
+function validateKey(val) {
+  const trChars = /[çğışöüÇĞİŞÖÜ]/;
+  const hasTr = trChars.test(val);
+  const isCamel = /^[a-z][a-zA-Z0-9]*$/.test(val);
+  const isSnake = /^[a-z][a-z0-9_]*$/.test(val);
+  const isPascal = /^[A-Z][a-zA-Z0-9]*$/.test(val);
+  const isValid = !hasTr && (isCamel || isSnake || isPascal);
+  if (isValid) return null;
+  const msgs = [];
+  if (hasTr) {
+    const found = [...val].filter(c => trChars.test(c));
+    const uniq = [...new Set(found)];
+    const sug = val
+      .replace(/ç/g,'c').replace(/Ç/g,'C')
+      .replace(/ğ/g,'g').replace(/Ğ/g,'G')
+      .replace(/ı/g,'i').replace(/İ/g,'I')
+      .replace(/ö/g,'o').replace(/Ö/g,'O')
+      .replace(/ş/g,'s').replace(/Ş/g,'S')
+      .replace(/ü/g,'u').replace(/Ü/g,'U');
+    msgs.push('Türkçe karakter (' + uniq.join(', ') + ') — Öneri: <b>' + sug + '</b>');
+  }
+  if (!isCamel && !isSnake && !isPascal) {
+    const raw = val.replace(/[çğışöüÇĞİŞÖÜ]/g, c => ({ç:'c',Ç:'C',ğ:'g',Ğ:'G',ı:'i',İ:'I',ş:'s',Ş:'S',ö:'o',Ö:'O',ü:'u',Ü:'U'}[c]||c));
+    const camel = raw.replace(/[\s\-\.]+(.)/g, (_, c) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g,'');
+    const snake = raw.toLowerCase().replace(/[\s\-\.]+/g,'_').replace(/[^a-z0-9_]/g,'');
+    msgs.push('camelCase veya snake_case önerilir — Örnek: <b>' + camel + '</b> ya da <b>' + snake + '</b>');
+  }
+  return msgs.join(' &nbsp;·&nbsp; ');
+}
+
+function updateKeyWarningEl(wrap, warning) {
+  let el = wrap.querySelector('.key-warning');
+  if (!warning) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'key-warning';
+    const row = wrap.querySelector('.field-row');
+    if (row && row.nextSibling) wrap.insertBefore(el, row.nextSibling);
+    else wrap.appendChild(el);
+  }
+  el.innerHTML = '⚠️ ' + warning;
+}
+function onValueChange(id, val) { const f = fields.find(x => x.id === id); if (f) { f.value = val; renderJSON(); } }
+function onDescChange(id, val) { const f = fields.find(x => x.id === id); if (f) { f.desc = val; renderJSON(); } }
+
+function onTypeChange(id, val) {
+  const f = fields.find(x => x.id === id);
+  if (!f) return;
+  const old = f.type; f.type = val;
+  if (val === 'boolean') f.value = 'true';
+  if (val === 'null') f.value = '';
+  if (val === 'number' && isNaN(Number(f.value))) f.value = '0';
+  if ((old === 'object' || old === 'array') && val !== 'object' && val !== 'array') {
+    const desc = getAllDescendants(id); fields = fields.filter(x => !desc.includes(x.id)); f.children = [];
+  }
+  renderFields(); renderJSON();
+}
+
+function setRootTypeSilent(t) {
+  rootType = t;
+  const bo = document.getElementById('btn-obj'), ba = document.getElementById('btn-arr');
+  if (!bo || !ba) return;
+  bo.style.fontWeight = t === 'object' ? '700' : '400'; bo.style.borderColor = t === 'object' ? '#555' : '#d0cec8';
+  ba.style.fontWeight = t === 'array' ? '700' : '400'; ba.style.borderColor = t === 'array' ? '#555' : '#d0cec8';
+}
+function setRootType(t) { setRootTypeSilent(t); renderFields(); renderJSON(); }
+
+function addFieldAtEnd(parentId) {
+  const id = nextId++;
+  fields.push({ id, parentId, key: '', type: 'string', value: '', desc: '', children: [] });
+  if (parentId !== null) { const p = fields.find(f => f.id === parentId); if (p) p.children.push(id); }
+  renderFields(); renderJSON();
+}
+
+function insertAfter(afterId) {
+  const af = fields.find(f => f.id === afterId); if (!af) return;
+  const parentId = af.parentId;
+  const newId = nextId++;
+  fields.push({ id: newId, parentId, key: '', type: 'string', value: '', desc: '', children: [] });
+  if (parentId !== null) {
+    const parent = fields.find(f => f.id === parentId);
+    if (parent) { const idx = parent.children.indexOf(afterId); parent.children.splice(idx + 1, 0, newId); }
+  } else {
+    const topIds = fields.filter(f => f.parentId === null).map(f => f.id);
+    const idx = topIds.indexOf(afterId); topIds.splice(idx + 1, 0, newId);
+    const nonTop = fields.filter(f => f.parentId !== null);
+    fields = [...topIds.map(tid => fields.find(f => f.id === tid)).filter(Boolean), ...nonTop];
+  }
+  renderFields(); renderJSON();
+  setTimeout(() => focusField(newId), 50);
+}
+
+function insertBefore(beforeId) {
+  const bf = fields.find(f => f.id === beforeId); if (!bf) return;
+  const parentId = bf.parentId;
+  const newId = nextId++;
+  fields.push({ id: newId, parentId, key: '', type: 'string', value: '', desc: '', children: [] });
+  if (parentId !== null) {
+    const parent = fields.find(f => f.id === parentId);
+    if (parent) { const idx = parent.children.indexOf(beforeId); parent.children.splice(idx, 0, newId); }
+  } else {
+    const topIds = fields.filter(f => f.parentId === null && f.id !== newId).map(f => f.id);
+    const idx = topIds.indexOf(beforeId); topIds.splice(idx, 0, newId);
+    const nonTop = fields.filter(f => f.parentId !== null);
+    fields = [...topIds.map(tid => fields.find(f => f.id === tid)).filter(Boolean), ...nonTop];
+  }
+  renderFields(); renderJSON();
+  setTimeout(() => focusField(newId), 50);
+}
+
+function removeField(id) {
+  const desc = getAllDescendants(id); const rm = new Set([id, ...desc]);
+  fields = fields.filter(f => !rm.has(f.id));
+  fields.forEach(f => { f.children = f.children.filter(c => !rm.has(c)); });
+  renderFields(); renderJSON();
+}
+function getAllDescendants(id) {
+  const f = fields.find(x => x.id === id); if (!f) return [];
+  let r = [...f.children]; f.children.forEach(cid => { r = r.concat(getAllDescendants(cid)); }); return r;
+}
+function getTopLevel() { return fields.filter(f => f.parentId === null); }
+function focusField(id) {
+  setTimeout(() => {
+    const w = document.querySelector('.field-wrap[data-field-id="' + id + '"]');
+    if (w) { const inp = w.querySelector('input'); if (inp) inp.focus(); }
+  }, 30);
+}
+
+// ── Render ──
+function renderFields() {
+  const c = document.getElementById('fields-container');
+  c.innerHTML = '';
+  const top = getTopLevel();
+  top.forEach((f, i) => {
+    if (i === 0) appendInsertLine(c, null, f.id, 'before');
+    renderFieldEl(f, c, 0);
+    appendInsertLine(c, f.id, null, 'after');
+  });
+}
+
+function appendInsertLine(container, afterId, beforeId, pos) {
+  const line = document.createElement('div');
+  line.className = 'insert-line';
+  const b1 = document.createElement('div'); b1.className = 'insert-line-bar';
+  const btn = document.createElement('button'); btn.className = 'insert-btn'; btn.textContent = '+ buraya ekle';
+  const b2 = document.createElement('div'); b2.className = 'insert-line-bar';
+  line.appendChild(b1); line.appendChild(btn); line.appendChild(b2);
+  if (afterId !== null) btn.addEventListener('click', (id => () => insertAfter(id))(afterId));
+  else if (beforeId !== null) btn.addEventListener('click', (id => () => insertBefore(id))(beforeId));
+  container.appendChild(line);
+}
+
+function renderFieldEl(field, container, depth) {
+  const pf = field.parentId !== null ? fields.find(f => f.id === field.parentId) : null;
+  const inArr = pf ? pf.type === 'array' : rootType === 'array';
+  const needsKey = !inArr;
+  const isComplex = field.type === 'object' || field.type === 'array';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'field-wrap';
+  wrap.dataset.fieldId = field.id;
+  wrap.style.marginLeft = depth * 14 + 'px';
+
+  // Ana satır
+  const row = document.createElement('div');
+  row.className = 'field-row';
+
+  if (needsKey) {
+    const ki = document.createElement('input');
+    ki.type = 'text'; ki.placeholder = 'Anahtar'; ki.value = field.key;
+    ki.addEventListener('input', (id => e => onKeyChange(id, e.target.value))(field.id));
+    if (field.keyWarning) ki.classList.add('warn'); else ki.classList.remove('warn');
+    row.appendChild(ki);
+  }
+  if (!isComplex) row.appendChild(buildValueInput(field));
+
+  const ts = document.createElement('select');
+  [['string','Metin'],['number','Sayı'],['boolean','Bool'],['null','Null'],['object','{ } Nesne'],['array','[ ] Dizi']].forEach(([v,l]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = l;
+    if (v === field.type) o.selected = true; ts.appendChild(o);
+  });
+  ts.addEventListener('change', (id => e => onTypeChange(id, e.target.value))(field.id));
+  row.appendChild(ts);
+
+  // Açıklama butonu
+  const descBtn = document.createElement('button');
+  descBtn.className = 'btn-desc' + (field.desc ? ' has-desc' : '');
+  descBtn.title = 'Açıklama ekle';
+  descBtn.textContent = '💬';
+  descBtn.style.display = showDescriptions ? '' : 'none';
+  descBtn.addEventListener('click', (function(id) {
+    return function() {
+      const dr = document.querySelector('.desc-row[data-for="' + id + '"]');
+      if (dr) {
+        const isHidden = dr.style.display === 'none';
+        dr.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) dr.querySelector('textarea').focus();
+      }
+    };
+  })(field.id));
+  row.appendChild(descBtn);
+
+  const db = document.createElement('button');
+  db.className = 'btn-del'; db.title = 'Sil'; db.textContent = '×';
+  db.addEventListener('click', (id => () => removeField(id))(field.id));
+  row.appendChild(db);
+  wrap.appendChild(row);
+
+  // Anahtar uyarısı
+  if (field.keyWarning) {
+    const warnEl = document.createElement('div');
+    warnEl.className = 'key-warning';
+    warnEl.innerHTML = '⚠️ ' + field.keyWarning;
+    wrap.appendChild(warnEl);
+  }
+
+  // Açıklama satırı
+  const descRow = document.createElement('div');
+  descRow.className = 'desc-row';
+  descRow.dataset.for = field.id;
+  descRow.style.display = (field.desc && showDescriptions) ? 'flex' : 'none';
+
+  const descLabel = document.createElement('span');
+  descLabel.className = 'desc-label';
+  descLabel.textContent = '💬';
+
+  const descTa = document.createElement('textarea');
+  descTa.placeholder = 'Bu alan için açıklama yazın...';
+  descTa.value = field.desc || '';
+  descTa.rows = 1;
+  descTa.addEventListener('input', (function(id, ta) {
+    return function() {
+      onDescChange(id, ta.value);
+      // Textarea'yı içeriğe göre büyüt
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+      // Buton durumunu güncelle
+      const btn = document.querySelector('.btn-desc[data-desc-for="' + id + '"]') ||
+                  wrap.querySelector('.btn-desc');
+      if (btn) btn.className = 'btn-desc' + (ta.value ? ' has-desc' : '');
+    };
+  })(field.id, descTa));
+  if (field.desc) { setTimeout(() => { descTa.style.height = descTa.scrollHeight + 'px'; }, 0); }
+
+  descRow.appendChild(descLabel);
+  descRow.appendChild(descTa);
+  wrap.appendChild(descRow);
+
+  // İç içe yapı
+  if (isComplex) {
+    const np = document.createElement('div');
+    np.className = 'nested-panel';
+    const nl = document.createElement('div'); nl.className = 'nested-label';
+    nl.innerHTML = '<span>' + (field.type === 'object' ? '{ } İç alanlar' : '[ ] Dizi öğeleri') + '</span>';
+    const ab = document.createElement('button'); ab.className = 'btn small'; ab.textContent = '+ Ekle';
+    ab.addEventListener('click', (id => () => addFieldAtEnd(id))(field.id));
+    nl.appendChild(ab); np.appendChild(nl);
+
+    const children = field.children.map(cid => fields.find(f => f.id === cid)).filter(Boolean);
+    children.forEach((cf, i) => {
+      if (i === 0) appendInsertLine(np, null, cf.id, 'before');
+      renderFieldEl(cf, np, 0);
+      appendInsertLine(np, cf.id, null, 'after');
+    });
+    wrap.appendChild(np);
+  }
+  container.appendChild(wrap);
+}
+
+function buildValueInput(field) {
+  if (field.type === 'boolean') {
+    const s = document.createElement('select');
+    ['true','false'].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; if (field.value === v) o.selected = true; s.appendChild(o); });
+    s.addEventListener('change', (id => e => onValueChange(id, e.target.value))(field.id));
+    return s;
+  }
+  if (field.type === 'null') { const i = document.createElement('input'); i.value = 'null'; i.disabled = true; i.style.color = '#aaa'; return i; }
+  const i = document.createElement('input');
+  i.type = field.type === 'number' ? 'number' : 'text';
+  i.placeholder = field.type === 'number' ? '0' : 'Değer';
+  i.value = field.value;
+  i.addEventListener('input', (id => e => onValueChange(id, e.target.value))(field.id));
+  return i;
+}
+
+// ── JSON oluşturma ──
+function fieldToValue(f) {
+  if (f.type === 'string') return f.value;
+  if (f.type === 'number') return f.value === '' ? 0 : Number(f.value);
+  if (f.type === 'boolean') return f.value === 'true';
+  if (f.type === 'null') return null;
+  if (f.type === 'object') { const o = {}; f.children.forEach(cid => { const cf = fields.find(x => x.id === cid); if (cf) o[cf.key || 'alan'] = fieldToValue(cf); }); return o; }
+  if (f.type === 'array') return f.children.map(cid => { const cf = fields.find(x => x.id === cid); return cf ? fieldToValue(cf) : null; });
+}
+function buildJSON() {
+  const top = getTopLevel();
+  if (rootType === 'object') { const o = {}; top.forEach(f => { o[f.key || 'alan'] = fieldToValue(f); }); return o; }
+  return top.map(f => fieldToValue(f));
+}
+
+// Açıklamalı JSON çıktısı (yorumlu mod)
+function buildAnnotatedLines() {
+  const showComments = document.getElementById('toggle-comments').checked;
+  if (!showComments) return syntaxHighlight(JSON.stringify(buildJSON(), null, 2));
+
+  // id bazlı açıklama haritası — key çakışmalarına karşı sıralı liste kullan
+  // JSON.stringify'ın gezeceği sırayla her (indent, key) çiftine açıklama ata
+  const annotated = buildAnnotatedJSON(buildJSON(), getTopLevel(), 0);
+  return annotated;
+}
+
+// Recursive: JSON objesini fields sırasına göre gez, açıklamaları satır üstüne ekle
+function buildAnnotatedJSON(obj, fieldList, indent) {
+  const pad = (n) => ' '.repeat(n * 2);
+  const lines = [];
+
+  if (Array.isArray(obj)) {
+    lines.push(hl('['));
+    fieldList.forEach((f, i) => {
+      const child = fieldToValue(f);
+      const comma = i < fieldList.length - 1 ? ',' : '';
+      const childFields = f.children.map(cid => fields.find(x => x.id === cid)).filter(Boolean);
+      const comment = f.desc ? '  <span class="jcomment">// ' + escapeHtml(f.desc) + '</span>' : '';
+      if (typeof child === 'object' && child !== null) {
+        const inner = buildAnnotatedJSON(child, childFields, indent + 1);
+        const innerLines = inner.split('\n');
+        innerLines[innerLines.length - 1] += comma;
+        // açıklamayı açılış parantezinin yanına koy
+        innerLines[0] += comment;
+        lines.push(...innerLines.map(l => pad(indent + 1) + l));
+      } else {
+        lines.push(pad(indent + 1) + hl(JSON.stringify(child)) + comma + comment);
+      }
+    });
+    lines.push(pad(indent) + hl(']'));
+  } else {
+    lines.push(hl('{'));
+    fieldList.forEach((f, i) => {
+      const key = f.key || 'alan';
+      const child = fieldToValue(f);
+      const comma = i < fieldList.length - 1 ? ',' : '';
+      const childFields = f.children.map(cid => fields.find(x => x.id === cid)).filter(Boolean);
+      const comment = f.desc ? '  <span class="jcomment">// ' + escapeHtml(f.desc) + '</span>' : '';
+      if (typeof child === 'object' && child !== null) {
+        const inner = buildAnnotatedJSON(child, childFields, indent + 1);
+        const innerLines = inner.split('\n');
+        innerLines[0] = hl('"' + key + '"') + ': ' + innerLines[0];
+        innerLines[innerLines.length - 1] += comma;
+        innerLines[0] += comment;
+        lines.push(...innerLines.map(l => pad(indent + 1) + l));
+      } else {
+        lines.push(pad(indent + 1) + hl('"' + key + '"') + ': ' + hl(JSON.stringify(child)) + comma + comment);
+      }
+    });
+    lines.push(pad(indent) + hl('}'));
+  }
+  return lines.join('\n');
+}
+
+function hl(str) {
+  return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+\.?\d*([eE][+-]?\d+)?)/g, m => {
+    let c = 'jn';
+    if (/^"/.test(m)) c = /:$/.test(m) ? 'jk' : 'js';
+    else if (/true|false/.test(m)) c = 'jb';
+    else if (/null/.test(m)) c = 'jx';
+    return '<span class="' + c + '">' + m + '</span>';
+  });
+}
+
+function syntaxHighlight(json) { return hl(json); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderJSON() {
+  document.getElementById('json-output').innerHTML = buildAnnotatedLines();
+}
+function copyJSON() {
+  const showComments = document.getElementById('toggle-comments').checked;
+  if (showComments) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildAnnotatedLines();
+    navigator.clipboard.writeText(tmp.innerText).then(() => {
+      const btn = document.getElementById('copy-btn');
+      const orig = btn.textContent; btn.textContent = '✓ Kopyalandı!';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    });
+    return;
+  }
+  navigator.clipboard.writeText(JSON.stringify(buildJSON(), null, 2)).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const orig = btn.textContent; btn.textContent = '✓ Kopyalandı!';
+    setTimeout(() => { btn.textContent = orig; }, 1800);
+  });
+}
+function clearAll() { fields = []; nextId = 1; renderFields(); renderJSON(); }
+
+const templates = {
+  siparis: { rootType: 'object', fields: [
+    { id:1, parentId:null, key:'siparis_no', type:'string', value:'SIP-2026-001', desc:'Benzersiz sipariş numarası', children:[] },
+    { id:2, parentId:null, key:'tarih', type:'string', value:'2026-05-16', desc:'ISO 8601 formatında tarih', children:[] },
+    { id:3, parentId:null, key:'musteri', type:'object', value:'', desc:'Müşteri bilgileri', children:[4,5,6] },
+      { id:4, parentId:3, key:'ad', type:'string', value:'Ahmet Yılmaz', desc:'', children:[] },
+      { id:5, parentId:3, key:'email', type:'string', value:'ahmet@ornek.com', desc:'', children:[] },
+      { id:6, parentId:3, key:'telefon', type:'string', value:'+90 532 000 00 00', desc:'', children:[] },
+    { id:7, parentId:null, key:'urunler', type:'array', value:'', desc:'Sipariş edilen ürünler listesi', children:[8,9] },
+      { id:8, parentId:7, key:'', type:'object', value:'', desc:'', children:[10,11,12] },
+        { id:10, parentId:8, key:'urun_adi', type:'string', value:'Laptop', desc:'', children:[] },
+        { id:11, parentId:8, key:'adet', type:'number', value:'1', desc:'', children:[] },
+        { id:12, parentId:8, key:'fiyat', type:'number', value:'24999', desc:'KDV dahil TL fiyat', children:[] },
+      { id:9, parentId:7, key:'', type:'object', value:'', desc:'', children:[13,14,15] },
+        { id:13, parentId:9, key:'urun_adi', type:'string', value:'Mouse', desc:'', children:[] },
+        { id:14, parentId:9, key:'adet', type:'number', value:'2', desc:'', children:[] },
+        { id:15, parentId:9, key:'fiyat', type:'number', value:'499', desc:'', children:[] },
+    { id:16, parentId:null, key:'toplam', type:'number', value:'25997', desc:'Tüm ürünlerin toplam tutarı', children:[] },
+    { id:17, parentId:null, key:'odeme_tamamlandi', type:'boolean', value:'false', desc:'Ödeme durumu', children:[] },
+  ]},
+  kullanici: { rootType: 'object', fields: [
+    { id:1, parentId:null, key:'id', type:'number', value:'42', desc:'Veritabanı birincil anahtarı', children:[] },
+    { id:2, parentId:null, key:'kullanici_adi', type:'string', value:'ayse_kaya', desc:'', children:[] },
+    { id:3, parentId:null, key:'email', type:'string', value:'ayse@ornek.com', desc:'', children:[] },
+    { id:4, parentId:null, key:'aktif', type:'boolean', value:'true', desc:'Hesap aktif mi?', children:[] },
+    { id:5, parentId:null, key:'roller', type:'array', value:'', desc:'Kullanıcı yetki rolleri', children:[6,7] },
+      { id:6, parentId:5, key:'', type:'string', value:'admin', desc:'', children:[] },
+      { id:7, parentId:5, key:'', type:'string', value:'editor', desc:'', children:[] },
+  ]},
+  urun: { rootType: 'object', fields: [
+    { id:1, parentId:null, key:'id', type:'string', value:'URN-001', desc:'', children:[] },
+    { id:2, parentId:null, key:'ad', type:'string', value:'Kablosuz Kulaklık', desc:'', children:[] },
+    { id:3, parentId:null, key:'fiyat', type:'number', value:'1299', desc:'TL cinsinden', children:[] },
+    { id:4, parentId:null, key:'stok', type:'number', value:'150', children:[] },
+    { id:5, parentId:null, key:'etiketler', type:'array', value:'', desc:'', children:[6,7] },
+      { id:6, parentId:5, key:'', type:'string', value:'elektronik', desc:'', children:[] },
+      { id:7, parentId:5, key:'', type:'string', value:'ses', desc:'', children:[] },
+    { id:8, parentId:null, key:'stokta_var', type:'boolean', value:'true', desc:'', children:[] },
+  ]}
+};
+function loadTemplate(name) {
+  const tpl = templates[name];
+  fields = tpl.fields.map(f => ({ ...f, children: [...f.children] }));
+  nextId = Math.max(...fields.map(f => f.id)) + 1;
+  setRootType(tpl.rootType);
+}
+
+setRootType('object');
+loadTemplate('siparis');
+</script>
+</body>
+</html>
